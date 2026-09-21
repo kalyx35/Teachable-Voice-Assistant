@@ -2,17 +2,26 @@ package com.example.teachablevoiceassistant.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Minimal accessibility service foundation.
+ * Accessibility service foundation.
  *
- * Responsibilities (and nothing more, for now):
- *  1. Receive AccessibilityEvent callbacks and log them.
- *  2. On selected events, fetch the active window's root node and dump its tree.
+ * Day 2 behaviour:
+ *  - Ignores noisy events completely (no logging, no work).
+ *  - On a "meaningful" event (window changed, click, long click) it logs one
+ *    short line and schedules a UI tree dump.
+ *  - Dumps are debounced: a burst of events produces ONE dump, taken after
+ *    the UI has had a moment to settle.
  */
 class WorkflowAccessibilityService : AccessibilityService() {
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var pendingTrigger: String = ""
+    private val dumpRunnable = Runnable { dumpActiveWindow(pendingTrigger) }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -22,21 +31,41 @@ class WorkflowAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        logEvent(event)
+        // An uncaught exception here would kill the service, so guard everything.
+        try {
+            // Not in the map = not meaningful = ignore silently.
+            val delayMs = DUMP_DELAY_MS_BY_EVENT[event.eventType] ?: return
 
-        if (event.eventType in TREE_DUMP_EVENT_TYPES) {
-            dumpActiveWindow()
+            logEvent(event)
+            scheduleTreeDump(AccessibilityEvent.eventTypeToString(event.eventType), delayMs)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error while handling accessibility event", e)
         }
     }
 
     override fun onInterrupt() {
-        // Called when the system wants to interrupt feedback. Nothing to do yet.
         Log.w(TAG, "Service interrupted")
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "Service unbound")
+        handler.removeCallbacksAndMessages(null)
         return super.onUnbind(intent)
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
+    }
+
+    /**
+     * (Re)starts the timer. If another meaningful event arrives before it fires,
+     * the timer restarts, so we only dump once things have quieted down.
+     */
+    private fun scheduleTreeDump(trigger: String, delayMs: Long) {
+        pendingTrigger = trigger
+        handler.removeCallbacks(dumpRunnable)
+        handler.postDelayed(dumpRunnable, delayMs)
     }
 
     private fun logEvent(event: AccessibilityEvent) {
@@ -49,30 +78,38 @@ class WorkflowAccessibilityService : AccessibilityService() {
         )
     }
 
-    private fun dumpActiveWindow() {
-        // Kotlin property syntax for getRootInActiveWindow(). Can be null, e.g.
-        // during window transitions or on secure (FLAG_SECURE) screens.
-        val root = rootInActiveWindow
-        if (root == null) {
-            Log.w(TAG, "rootInActiveWindow is null - nothing to dump")
-            return
-        }
-
+    private fun dumpActiveWindow(trigger: String) {
         try {
-            AccessibilityNodeDumper.dump(root)
-        } finally {
-            root.recycleCompat()
+            // Can be null during window transitions or on secure (FLAG_SECURE) screens.
+            val root = rootInActiveWindow
+            if (root == null) {
+                Log.w(TAG, "rootInActiveWindow is null - nothing to dump (trigger=$trigger)")
+                return
+            }
+
+            try {
+                AccessibilityNodeDumper.dump(root, trigger)
+            } finally {
+                root.recycleCompat()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to dump active window", e)
         }
     }
 
     companion object {
         private const val TAG = "WorkflowA11y"
 
-        // Events that trigger a full tree dump. Add more types here to dump more often,
-        // e.g. AccessibilityEvent.TYPE_VIEW_CLICKED. Avoid TYPE_WINDOW_CONTENT_CHANGED
-        // unless you throttle it: it fires very frequently.
-        private val TREE_DUMP_EVENT_TYPES = setOf(
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        // Which events matter, and how long to wait (ms) before dumping the tree.
+        //  - Window change: short wait, the new screen is usually ready quickly.
+        //  - Click / long click: longer wait, so the result of the tap
+        //    (new screen, dialog, tab switch) has time to appear.
+        // Add types here to react to more events. Be careful with
+        // TYPE_WINDOW_CONTENT_CHANGED and TYPE_VIEW_SCROLLED: they fire constantly.
+        private val DUMP_DELAY_MS_BY_EVENT = mapOf(
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED to 400L,
+            AccessibilityEvent.TYPE_VIEW_CLICKED to 800L,
+            AccessibilityEvent.TYPE_VIEW_LONG_CLICKED to 800L
         )
     }
 }
