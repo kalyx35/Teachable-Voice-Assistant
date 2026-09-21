@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Teachable Voice Assistant</string>
+
+    <!-- Shown in Settings > Accessibility > Installed apps -->
+    <string name="accessibility_service_label">Workflow Assistant</string>
+    <string name="accessibility_service_description">Reads on-screen UI elements so Workflow Assistant can learn and repeat your workflows. No data leaves your device.</string>
+</resources>
