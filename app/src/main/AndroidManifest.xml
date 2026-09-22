@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -37,6 +43,17 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+        <!-- Day 3: Teach mode - start/stop recording, see a live step count. -->
+        <activity
+            android:name=".workflow.ui.TeachActivity"
+            android:exported="false"
+            android:label="@string/teach_activity_label" />
+
+        <!-- Day 3: debug/inspection screen - shows a recorded workflow's steps. -->
+        <activity
+            android:name=".workflow.ui.WorkflowInspectorActivity"
+            android:exported="false"
+            android:label="@string/inspector_activity_label" />
     </application>
 
 </manifest>

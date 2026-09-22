@@ -208,7 +208,7 @@ object AccessibilityNodeDumper {
         }
 
     /** Is this node a list/grid whose direct children are list items? */
-    private fun isListContainer(node: AccessibilityNodeInfo, className: String?): Boolean {
+    internal fun isListContainer(node: AccessibilityNodeInfo, className: String?): Boolean {
         val simpleName = className?.substringAfterLast('.').orEmpty()
         return node.collectionInfo != null ||
                 simpleName.endsWith("RecyclerView") ||
@@ -220,7 +220,7 @@ object AccessibilityNodeDumper {
      * Decides the role of a node. Order matters: the first matching rule wins.
      * Uses class name, flags and parent info only - never coordinates.
      */
-    private fun classify(node: AccessibilityNodeInfo, className: String?, parentIsList: Boolean): UiRole {
+    internal fun classify(node: AccessibilityNodeInfo, className: String?, parentIsList: Boolean): UiRole {
         val simpleName = className?.substringAfterLast('.').orEmpty()
 
         return when {

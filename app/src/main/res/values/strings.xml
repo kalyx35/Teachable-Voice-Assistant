@@ -1,7 +1,12 @@
 <resources>
-    <string name="app_name">Teachable Voice Assistant</string>
+    <!-- Keep your existing app_name (merge into your current strings.xml). -->
+    <string name="app_name">Workflow Assistant</string>
 
     <!-- Shown in Settings > Accessibility > Installed apps -->
     <string name="accessibility_service_label">Workflow Assistant</string>
     <string name="accessibility_service_description">Reads on-screen UI elements so Workflow Assistant can learn and repeat your workflows. No data leaves your device.</string>
+
+    <!-- Day 3 debug screens -->
+    <string name="teach_activity_label">Teach a workflow</string>
+    <string name="inspector_activity_label">Workflow steps</string>
 </resources>
